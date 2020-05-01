@@ -92,17 +92,17 @@ fn_getAttribute() {
 # x, y, w, or h are either an int or ' c '
 # If an int, than set that value
 # If ' c ' than the value is not updated
-# Arguments: wid x y w h
+# Arguments: x y w h wid
 fn_teleportWid() {
-	local wid=$(echo "$1" | cut -d + -f 1 | cut -d : -f 1)
+	local wid=$(echo "$5" | cut -d + -f 1 | cut -d : -f 1)
 
 	# Deal with adjust option
 	local ox=0
 	local oy=0
 	local ow=0
 	local oh=0
-	if [[ "$1" == *"+"* ]]; then
-		local ototal="$(echo "$1" | cut -d + -f 2 | cut -d : -f 1)"
+	if [[ "$5" == *"+"* ]]; then
+		local ototal="$(echo "$5" | cut -d + -f 2 | cut -d : -f 1)"
 		ox=$(echo "$ototal" | cut -d , -f 1)
 		oy=$(echo "$ototal" | cut -d , -f 2)
 		ow=$(echo "$ototal" | cut -d , -f 3)
@@ -112,21 +112,23 @@ fn_teleportWid() {
 	# Check if x,y,w,h are c and if they are make them the current value
 	local bor="$(fn_getAttribute "$wid" b)"
 	[[ "$IGNOREB" -eq 1 ]] && bor=0
-	local nx=$2
-	local ny=$3
-	local nw=$(( $4 - $bor -$bor ))
-	local nh=$(( $5 - $bor -$bor ))
-	if [[ "$2" == "c" ]]; then
+	local nx=$1
+	local ny=$2
+	if [[ "$1" == "c" ]]; then
 		nx=$(fn_getAttribute "$wid" "x")
 	fi
-	if [[ "$3" == "c" ]]; then
+	if [[ "$2" == "c" ]]; then
 		ny=$(fn_getAttribute "$wid" "y")
 	fi
-	if [[ "$4" == "c" ]]; then
-		nw=$(fn_getAttribute "$wid" "w")
+	if [[ "$3" == "c" ]]; then
+		local nw=$(fn_getAttribute "$wid" "w")
+	else
+		local nw=$(( $4 - $bor -$bor ))
 	fi
-	if [[ "$5" == "c" ]]; then
-		nh=$(fn_getAttribute "$wid" "h")
+	if [[ "$4" == "c" ]]; then
+		local nh=$(fn_getAttribute "$wid" "h")
+	else
+		local nh=$(( $5 - $bor -$bor ))
 	fi
 
 	# Mirror if set
@@ -208,7 +210,7 @@ fn_maxWid() {
 	esac
 
 	# Move wid
-	fn_teleportWid "$wid" "$nx" "$ny" "$nw" "$nh"
+	fn_teleportWid "$nx" "$ny" "$nw" "$nh" "$wid"
 }
 
 # Slam a window in a specified direction
@@ -217,57 +219,70 @@ fn_maxWid() {
 # right	|	east
 # down	|	south
 # left	|	west
-# Arguments: wid directions...
+# upperleft		|	northwest
+# upperright	|	northeast
+# lowerleft		|	southwest
+# lowerright	|	southeast
+# Arguments: direction wid
 fn_slamWid() {
-	local wid="$1"
-	shift 1;
+	local wid="$2"
 
 	# Get starting geometry
 	local nx=$(fn_getAttribute "$wid" "x")
 	local ny=$(fn_getAttribute "$wid" "y")
 	local nw=$(fn_getAttribute "$wid" "w")
 	local nh=$(fn_getAttribute "$wid" "h")
+	local bor="$(fn_getAttribute "$wid" "b")"
+	[[ "$IGNOREB" -eq 1 ]] && bor=0
 
-	# Slam the window in the appropriate directions
-	while :
-	do
-		case "$1" in
-			"up" | "north")
-				ny="$GY0"
-				shift 1;;
-			"right" | "east")
-				nx=$(( $GX1 - $nw ))
-				shift 1;;
-			"down" | "south")
-				ny=$(( $GY1 - $nh ))
-				shift 1;;
-			"left" | "west")
-				nx="$GX0"
-				shift 1;;
-			*)
-				break;;
-		esac
-	done
+	# Slam the window in the appropriate direction
+	case "$1" in
+		"up" | "north")
+			ny="$GY0"
+			nx="c"
+			nw="c"
+			nh="c";;
+		"right" | "east")
+			nx=$(( $GX1 - $nw - $bor - $bor ))
+			ny="c"
+			nw="c"
+			nh="c";;
+		"down" | "south")
+			ny=$(( $GY1 - $nh - $bor - $bor ))
+			nx="c"
+			nw="c"
+			nh="c";;
+		"left" | "west")
+			nx="$GX0"
+			ny="c"
+			nw="c"
+			nh="c";;
+		"upperleft"  | "northwest" )
+			nx="$GX0"
+			ny="$GY0"
+			nw="c"
+			nh="c";;
+		"upperright" | "northeast" )
+			nx=$(( $GX1 - $nw - $bor - $bor ))
+			ny="$GY0"
+			nw="c"
+			nh="c";;
+		"lowerleft"  | "southwest" )
+			nx="$GX0"
+			ny=$(( $GY1 - $nh - $bor - $bor ))
+			nw="c"
+			nh="c";;
+		"lowerright" | "southeast" )
+			nx=$(( $GX1 - $nw - $bor - $bor ))
+			ny=$(( $GY1 - $nh - $bor - $bor ))
+			nw="c"
+			nh="c";;
+		*) echo "not a valid direction";;
+	
+	esac
 
 	# Move wid
-	fn_teleportWid "$wid" "$nx" "$ny" "$nw" "$nh"
-}
-
-# Place a window into a specified corner
-# Corners are
-# upperleft		|	northwest
-# upperright	|	northeast
-# lowerleft		|	southwest
-# lowerright	|	southeast
-# Arguments: corner wid
-fn_cornerWid() {
-	# Check input and pass job to fn_slamWid
-	case "$1" in
-		"upperleft" | "northwest" ) fn_slamWid "$2" "north" "west";;
-		"upperright" | "northeast" ) fn_slamWid "$2" "north" "east";;
-		"lowerleft" | "southwest" ) fn_slamWid "$2" "south" "west";;
-		"lowerright" | "southeast" ) fn_slamWid "$2" "south" "east";;
-	esac
+	fn_teleportWid "$nx" "$ny" "$nw" "$nh" "$wid"
 }
 
 # Center a window
@@ -295,7 +310,7 @@ fn_centerWid() {
 	ny=$(( $gcy - ( $nh / 2 ) ))
 
 	# Move wid
-	fn_teleportWid "$1" "$nx" "$ny" "$nw" "$nh"
+	fn_teleportWid "$nx" "$ny" "$nw" "$nh" "$wid"
 
 }
 
@@ -393,7 +408,7 @@ fn_gridWid() {
 	fi
 
 	# Move wid
-	fn_teleportWid "$3" "$nx" "$ny" "$nw" "$nh"
+	fn_teleportWid "$nx" "$ny" "$nw" "$nh" "$wid"
 }
 
 # Check a parsed position expressions output, if the output was o use the override value
@@ -677,13 +692,6 @@ fn_usageMore() {
 	echo "  Y1 = the right most y boundary to use"
 	echo "X0 Y0 X1 and Y1 can be set to 'c' to use their current value."
 	echo ""
-	echo "Corner    -C, --corner CORNER WID"
-	echo "  CORNER is one of:"
-	echo "    upperleft  | northwest"
-	echo "    upperright | northeast"
-	echo "    lowerleft  | southwest"
-	echo "    lowerright | southeast"
-	echo ""
 	echo "Grid    -G, --grid GRID [BEHAVIOR POSITION WIDS | BEHAVIOR WIDS | POSITION WIDS | WIDS]..."
 	echo "  GRID is two ints connected by an 'x'"
 	echo "    Example: 3x3"
@@ -738,15 +746,19 @@ fn_usageMore() {
 	echo "      |                   |         |"
 	echo "      +-----------------------------+"
 	echo ""
-	echo "Place    -p, --place WID X Y W H"
+	echo "Place    -p, --place X Y W H WID"
 	echo "  X = the x position of the window"
 	echo "  Y = the y position of the window"
 	echo "  W = the width of the window"
 	echo "  H = the height of the window"
 	echo "X Y Y and H can be set to 'c' to use their current value."
 	echo ""
-	echo "Slam    -S, --slam WID DIRECTIONS..."
+	echo "Slam    -S, --slam DIRECTION WID"
 	echo "  DIRECTION is one of:"
+	echo "  up         | north"
+	echo "  right      | east"
+	echo "  down       | south"
+	echo "  left       | west"
 	echo "  upperleft  | northwest"
 	echo "  upperright | northeast"
 	echo "  lowerleft  | southwest"
@@ -784,11 +796,10 @@ fn_usage() {
 	echo ""
 	echo "MODE"
 	echo "  -c, --center WID		center a window"
-	echo "  -C, --corner CORNER WID	place a window in a corner"
 	echo "  -G, --grid GRID POSITION WIDS	place windows in a grid cells"
 	echo "  -M, --max DIMENSION WID 	maximize a windows in a given dimension"
-	echo "  -p, --place WID X Y W H	place windows in a given position"
-	echo "  -S, --slam WID DIRECTIONS	send a window in a direction"
+	echo "  -p, --place X Y W H WID	place windows in a given position"
+	echo "  -S, --slam DIRECTION WID	send a window in a direction"
 	echo "  -T, --tile RATIO PATTERN WIDS	place windows using a pattern"
 }
 
@@ -820,10 +831,6 @@ do
 		"-c" | "--center" )
 			shift 1
 			fn_centerWid $@
-			exit;;
-		"-C" | "--corner" )
-			shift 1
-			fn_cornerWid $@
 			exit;;
 		"-G" | "--grid" )
 			shift 1
