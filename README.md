@@ -182,7 +182,9 @@ Example: <code>0,0+1,2</code> will place a window in the top left cell, through 
 * Add dwindle pattern variants to lstack, rstack, bstack, and tstack.
 * Add ability to read from stdin.
 * Add additional direct window adjustments.
+* Add resize while keeping scale.
 * Add inverted behaviors to Grid.
 * Add support for WM like berry that don't always work well with wmutils.
 * Add example patterns to allow users to jumpstart their own patterns.
+* Add direct access to internal functions to help those creating their own patterns.
 * Possibly rewrite in C++ (though there are pros and cons to this).

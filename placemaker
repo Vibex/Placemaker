@@ -88,10 +88,10 @@ fn_geometry() {
 # b = border
 # o = override_redirect
 # m = map
-# Arguments: wid attribute
+# Arguments: attribute wid
 fn_getAttribute() {
-	local wid=$(echo "$1" | cut -d + -f 1 | cut -d : -f 1)
-	wattr "$2" "$wid"
+	local wid=$(echo "$2" | cut -d + -f 1 | cut -d : -f 1)
+	wattr "$1" "$wid"
 }
 
 # Teleport a window to a given position and size
@@ -121,29 +121,29 @@ fn_teleportWid() {
 
 	# Check if x,y,w,h are c and if they are make them the current value
 	# If they aren't adjust them accordingly
-	local bor="$(fn_getAttribute "$wid" b)"
+	local bor="$(fn_getAttribute "b" "$wid")"
 	[[ "$IGNOREB" -eq 1 ]] && bor=0
 	# Check x
 	if [[ "$1" == "c" ]]; then
-		local nx=$(fn_getAttribute "$wid" "x")
+		local nx=$(fn_getAttribute "x" "$wid")
 	else
 		local nx=$(( $1 + $GAP ))
 	fi
 	# Check y
 	if [[ "$2" == "c" ]]; then
-		local ny=$(fn_getAttribute "$wid" "y")
+		local ny=$(fn_getAttribute "y" "$wid")
 	else
 		local ny=$(( $2 + $GAP ))
 	fi
 	# Check w
 	if [[ "$3" == "c" ]]; then
-		local nw=$(fn_getAttribute "$wid" "w")
+		local nw=$(fn_getAttribute "w" "$wid")
 	else
 		local nw=$(( $3 - $GAP - $GAP - $bor - $bor ))
 	fi
 	# Check h
 	if [[ "$4" == "c" ]]; then
-		local nh=$(fn_getAttribute "$wid" "h")
+		local nh=$(fn_getAttribute "h" "$wid")
 	else
 		local nh=$(( $4 - $GAP - $GAP - $bor - $bor ))
 	fi
@@ -181,11 +181,11 @@ fn_maxWid() {
 	local wid="$2"
 
 	# Get starting geometry
-	local nx=$(fn_getAttribute "$wid" "x")
-	local ny=$(fn_getAttribute "$wid" "y")
-	local nw=$(fn_getAttribute "$wid" "w")
-	local nh=$(fn_getAttribute "$wid" "h")
-	local bor="$(fn_getAttribute "$wid" "b")"
+	local nx=$(fn_getAttribute "x" "$wid")
+	local ny=$(fn_getAttribute "y" "$wid")
+	local nw=$(fn_getAttribute "w" "$wid")
+	local nh=$(fn_getAttribute "h" "$wid")
+	local bor="$(fn_getAttribute "b" "$wid")"
 	[[ "$IGNOREB" -eq 1 ]] && bor=0
 
 	case "$1" in
@@ -249,11 +249,11 @@ fn_slamWid() {
 	local wid="$2"
 
 	# Get starting geometry
-	local nx=$(fn_getAttribute "$wid" "x")
-	local ny=$(fn_getAttribute "$wid" "y")
-	local nw=$(fn_getAttribute "$wid" "w")
-	local nh=$(fn_getAttribute "$wid" "h")
-	local bor="$(fn_getAttribute "$wid" "b")"
+	local nx=$(fn_getAttribute "x" "$wid")
+	local ny=$(fn_getAttribute "y" "$wid")
+	local nw=$(fn_getAttribute "w" "$wid")
+	local nh=$(fn_getAttribute "h" "$wid")
+	local bor="$(fn_getAttribute "b" "$wid")"
 	[[ "$IGNOREB" -eq 1 ]] && bor=0
 
 	# Slam the window in the appropriate direction
@@ -264,12 +264,12 @@ fn_slamWid() {
 			nw="c"
 			nh="c";;
 		"right" | "east")
-			nx=$(( $GX1 - $nw - $bor - $bor ))
+			nx=$(( $GX1 - $nw - $GAP - $GAP - $bor - $bor ))
 			ny="c"
 			nw="c"
 			nh="c";;
 		"down" | "south")
-			ny=$(( $GY1 - $nh - $bor - $bor ))
+			ny=$(( $GY1 - $nh - $GAP - $GAP - $bor - $bor ))
 			nx="c"
 			nw="c"
 			nh="c";;
@@ -284,18 +284,18 @@ fn_slamWid() {
 			nw="c"
 			nh="c";;
 		"upperright" | "northeast" )
-			nx=$(( $GX1 - $nw - $bor - $bor ))
+			nx=$(( $GX1 - $nw - $GAP - $GAP - $bor - $bor ))
 			ny="$GY0"
 			nw="c"
 			nh="c";;
 		"lowerleft"  | "southwest" )
 			nx="$GX0"
-			ny=$(( $GY1 - $nh - $bor - $bor ))
+			ny=$(( $GY1 - $nh - $GAP - $GAP - $bor - $bor ))
 			nw="c"
 			nh="c";;
 		"lowerright" | "southeast" )
-			nx=$(( $GX1 - $nw - $bor - $bor ))
-			ny=$(( $GY1 - $nh - $bor - $bor ))
+			nx=$(( $GX1 - $nw - $GAP - $GAP - $bor - $bor ))
+			ny=$(( $GY1 - $nh - $GAP - $GAP - $bor - $bor ))
 			nw="c"
 			nh="c";;
 		*) echo "not a valid direction";;
@@ -313,10 +313,10 @@ fn_centerWid() {
 	local wid="$1"
 
 	# Get starting geometry
-	local nx=$(fn_getAttribute "$wid" "x")
-	local ny=$(fn_getAttribute "$wid" "y")
-	local nw=$(fn_getAttribute "$wid" "w")
-	local nh=$(fn_getAttribute "$wid" "h")
+	local nx=$(fn_getAttribute "x" "$wid")
+	local ny=$(fn_getAttribute "y" "$wid")
+	local nw=$(fn_getAttribute "w" "$wid")
+	local nh=$(fn_getAttribute "h" "$wid")
 
 	# Get center of work area
 	local gcx=$(( ( $GX1 - $GX0 ) / 2 ))
@@ -329,7 +329,8 @@ fn_centerWid() {
 	ny=$(( $gcy - ( $nh / 2 ) ))
 
 	# Move wid
-	fn_teleportWid "$nx" "$ny" "$nw" "$nh" "$wid"
+	GAP=0
+	fn_teleportWid "$nx" "$ny" "c" "c" "$wid"
 
 }
 
@@ -415,14 +416,14 @@ fn_gridWid() {
 	local nx=$(( ( $xcell * $xpos ) + $GX0 ))
 	local ny=$(( ( $ycell * $ypos ) + $GY0 ))
 
-	# If the wid is in the last x cell of the grid, than adjust to compensate for rounding errors in cell size
+	# If the wid is in the last x cell of the grid, compensate for rounding errors in cell size
 	if [[ $(( $xpos + $xscale )) -eq $xgrid ]]; then
 		local nw=$(( $GX1 - $nx ))
 	else
 		local nw=$(( $xscale * $xcell ))
 	fi
 
-	# If the wid is in the last y cell of the grid, than adjust to compensate for rounding errors in cell size
+	# If the wid is in the last y cell of the grid, compensate for rounding errors in cell size
 	if [[ "$(( $ypos + $yscale ))" -eq "$ygrid" ]]; then
 		local nh=$(( $GY1 - $ny ))
 	else
