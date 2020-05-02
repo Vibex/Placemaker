@@ -54,6 +54,8 @@ Used to position windows based on their id value, <code>WID</code>.
     - <code>vertical </code>: Maximize the window to fill the full vertical geometry.
     - <code>full</code> : Maximize the window to fill the full geometry.
 
+- <code>-L, --scale PERCENT WID</code> : Scale a windows size by a given percentage.
+
 - <code>-G, --grid GRID [POSITION] WIDS</code> :  Places a windows in virtual grid cells, starting at a specified position. If no <code>POSITION</code> is passed, it defaults to <code>0,0</code>.
 
   - <code>GRID</code> is two integers connected by the character <code>x</code>.
@@ -158,7 +160,7 @@ By default <code>--grid</code> will automatically place all windows after the fi
 
 In addition to the format specified in the Usage section, a position can also be two sets of integers connected by the character <code>,</code>, connected by the character <code>+</code>. The first set of integers represents a standard  <code>POSITION</code>. The second set is the number of cells that the <code>WID</code> will occupy.
 
-Example: <code>0,0+1,2</code> will place a window in the top left cell, through the left middle cell of a <code>2x3</code> grid.
+Example: <code>0,0+1,2</code> will place a window in the top left cell, through the middle left cell of a <code>2x3</code> grid.
 
 ```
 +----------------+----------------+
@@ -176,15 +178,27 @@ Example: <code>0,0+1,2</code> will place a window in the top left cell, through 
 +----------------+----------------+
 ```
 
+#### Internal Functions
+
+In addition to the Modes listed in the Usage section, there is also <code>-I, --internal</code>. This mode exposes the internal functions of placemaker to the user. This allows for the usage of things like the built in data parsers when creating new patterns. When calling an internal function fn_ is automatically prepended to the call.
+
+Example: <code>-I parseGrid x 3x4</code> will call the fn_parseGrid function, and return 3.
+
+A complete list of functions and documentation can be found in the source code, but the key functions are:
+
+- <code>getAttribute</code> : Get an internal window attribute.
+- <code>parseGrid</code> : Return a requested value from a <code>GRID</code>.
+- <code>parsePosition</code> : Return a requested value from a <code>POSITION</code>.
+- <code>checkPosition</code> : If <code>parsePosition</code> returns the character <code>o</code> set an override value
+- <code>parseRatio</code> : Return a requested value from a <code>RATIO</code>.
+
 ## Todo
 
 * Add column and row patterns.
 * Add dwindle pattern variants to lstack, rstack, bstack, and tstack.
 * Add ability to read from stdin.
 * Add additional direct window adjustments.
-* Add resize while keeping scale.
 * Add inverted behaviors to Grid.
 * Add support for WM like berry that don't always work well with wmutils.
 * Add example patterns to allow users to jumpstart their own patterns.
-* Add direct access to internal functions to help those creating their own patterns.
 * Possibly rewrite in C++ (though there are pros and cons to this).

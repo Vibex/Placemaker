@@ -168,6 +168,25 @@ fn_teleportWid() {
 	[[ "$QUIET" -eq 0 ]] && echo "$nx $ny $nw $nh $wid"
 }
 
+# Scale a windows size by a percentage
+# Arguments: percent wid
+fn_scaleWid() {
+	# Parse arguments
+	local wid="$2"
+	local growth=$(echo "$1" | cut -d "%" -f 1)
+	
+	# Get starting geometry
+	local nw=$(fn_getAttribute "w" "$wid")
+	local nh=$(fn_getAttribute "h" "$wid")
+	
+	nw=$(( ($nw * $growth) / 100))
+	nh=$(( ($nh * $growth) / 100))
+	
+	# Move wid
+	IGNOREB=1
+	fn_teleportWid "c" "c" "$nw" "$nh" "$wid"
+}
+
 # Maximize a window in a given direction
 # up	|	north
 # right	|	east
@@ -581,18 +600,14 @@ fn_setFlip() {
 }
 
 # Parse a ratio expression and return the requested variable
-# Definition of Ratio is with fn_tile
-# c = master count
+# Definition of ratio is with fn_tile
 # m = master
 # t = total
-# Arguments: [c|m|t] ratio
+# Arguments: [m|t] ratio
 fn_parseRatio() {
 	local out="Not valid argument"
 	# Return m
-	if [[ "$1" == "c" ]]; then
-		out=$(echo "$2" | cut -d / -f 1)
-	# Return m
-	elif [[ "$1" == "m" ]]; then
+	if [[ "$1" == "m" ]]; then
 		out=$(echo "$2" | cut -d / -f 1)
 	# Return t
 	elif [[ "$1" == "t" ]]; then
@@ -603,10 +618,9 @@ fn_parseRatio() {
 
 # Take an arbitrary list on windows and tile them in a given pattern
 # A ratio is the representation of the master window size to the total monitor size, master/total
-# A ratio is a ' int/int ' or ' int-int/int '
+# A ratio is a ' int/int '
 # Examples:
 # 6/10 		master window takes up 6/10 of the screen and sub windows take up 4/10
-# 2-3/4		2 master windows take up 3/4 of the screen and a sub windows take up 1/4
 # A pattern is one of:
 # monocle	| max		| m = single window displayed filling all of given area
 # rstack	| vstack	| r = main window displayed on the left with the stack on the right
@@ -616,7 +630,6 @@ fn_parseRatio() {
 # Arguments: ratio pattern wid...
 fn_tile() {
 	# Get the ratios
-	mastercount=$(fn_parseRatio "c" "$1")
 	mratio=$(fn_parseRatio "m" "$1")
 	tratio=$(fn_parseRatio "t" "$1")
 	shift 1
@@ -700,23 +713,25 @@ fn_usage() {
 	echo ""
 	echo "SETTINGS"
 	echo "  --flip			flip the y placement of windows"
-	echo "  --gap GAP			specify placement bounds"
+	echo "  --gap GAP			specify gap between geometry and WID"
 	echo "  --geometry X0 Y0 X1 Y1	specify placement bounds"
-	echo "  --ignore-bor			ignore the output of 'wattr b wid' when placing"
+	echo "  --ignore-bor			don't adjust position with 'wattr b WID'"
 	echo "  --mirror			mirror the x placement of windows"
-	echo "  --print			window adjustments are only printed to stdout"
-	echo "  --quiet			window adjustments are not printed to stdout"
+	echo "  --print			window adjustments only printed to stdout"
+	echo "  --quiet			window adjustments not printed to stdout"
 	echo ""
 	echo "  -h, --help			display this help text"
-	echo "  --more-help			additional help text"
 	echo ""
 	echo "MODE"
 	echo "  -C, --center WID		center a window"
 	echo "  -G, --grid GRID POSITION WIDS	place windows in a grid cells"
-	echo "  -M, --max M_DIR WID 	maximize a windows in a given dimension"
+	echo "  -L, --scale PERCENT WID	scale a windows size"
+	echo "  -M, --max M_DIR WID 		maximize a windows in a given dimension"
 	echo "  -P, --place X Y W H WID	place windows in a given position"
-	echo "  -S, --slam S_DIR WID	send a window in a direction"
+	echo "  -S, --slam S_DIR WID		send a window in a direction"
 	echo "  -T, --tile RATIO PATTERN WIDS	place windows using a pattern"
+	echo ""
+	echo "  -I, --internal CMD		call an internal function"
 }
 
 while :
@@ -754,6 +769,10 @@ do
 			shift 1
 			fn_gridMany $@
 			exit;;
+		"-L" | "--scale" )
+			shift 1
+			fn_scaleWid $@
+			exit;;
 		"-M" | "--max" )
 			shift 1
 			fn_maxWid $@
@@ -769,6 +788,10 @@ do
 		"-T" | "--tile" )
 			shift 1
 			fn_tile $@
+			exit;;
+		"-I" | "--internal" )
+			shift 1
+			eval "fn_"$@
 			exit;;
 		*) break;;
 	esac
