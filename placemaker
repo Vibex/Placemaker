@@ -44,6 +44,16 @@ FLIP=0
 # 1 = True
 IGNOREB=0
 
+# Does placemaker print the adjutments to stdout instead of moving windows
+# 0 = False
+# 1 = True
+PRINT=0
+
+# Does placemaker only print errors
+# 0 = False
+# 1 = True
+QUIET=0
+
 ####
 #### FUNCTIONS
 ####
@@ -85,7 +95,7 @@ fn_getAttribute() {
 }
 
 # Teleport a window to a given position and size
-# A wid is an id or an 'id+adjust' or an ' id@place ' or an ' id+adjust@place '
+# A wid is an id or an 'id+adjust' or an ' id:place ' or an ' id+adjust:place '
 # Examples:
 # 0x00000000
 # 0x00000000+5,5,-5,-5
@@ -123,12 +133,12 @@ fn_teleportWid() {
 	if [[ "$3" == "c" ]]; then
 		local nw=$(fn_getAttribute "$wid" "w")
 	else
-		local nw=$(( $4 - $bor -$bor ))
+		local nw=$(( $3 - $bor - $bor ))
 	fi
 	if [[ "$4" == "c" ]]; then
 		local nh=$(fn_getAttribute "$wid" "h")
 	else
-		local nh=$(( $5 - $bor -$bor ))
+		local nh=$(( $4 - $bor - $bor ))
 	fi
 
 	# Mirror if set
@@ -147,10 +157,11 @@ fn_teleportWid() {
 	nh=$(( $nh - $GAP - $GAP + $oh ))
 
 	# Move window
-	wtp $nx $ny $nw $nh $wid
+	[[ "$PRINT" -eq 0 ]] && wtp $nx $ny $nw $nh $wid 
+	[[ "$QUIET" -eq 0 ]] && echo "$nx $ny $nw $nh $wid"
 }
 
-# Maximize a window in a given dimension
+# Maximize a window in a given direction
 # up	|	north
 # right	|	east
 # down	|	south
@@ -158,7 +169,7 @@ fn_teleportWid() {
 # horizontal
 # vertical
 # full
-# Arguments: dimension wid
+# Arguments: m_dir wid
 fn_maxWid() {
 	local wid="$2"
 
@@ -223,7 +234,7 @@ fn_maxWid() {
 # upperright	|	northeast
 # lowerleft		|	southwest
 # lowerright	|	southeast
-# Arguments: direction wid
+# Arguments: s_dir wid
 fn_slamWid() {
 	local wid="$2"
 
@@ -375,6 +386,9 @@ fn_parsePosition() {
 # 1,0+1,1	window stretches from middle top cell through right middle cell in a 3,3 grid
 # Arguments: grid position wid
 fn_gridWid() {
+	# Set wid
+	local wid="$3"
+
 	# Get Grid
 	local xgrid=$(fn_parseGrid "x" "$1")
 	local ygrid=$(fn_parseGrid "y" "$1")
@@ -671,135 +685,28 @@ fn_tile() {
 
 # Print Usage information
 # Arguments:
-fn_usageMore() {
-	echo ""
-	echo "WID"
-	echo "  WID is the id of the window you wish to manipulate."
-	echo "  You can also attach '+x,y,w,h' to your id to add additional manipulation to a window"
-	echo "    Example: $(pfw)"
-	echo "    Example: $(pfw)+5,10,-5,-10"
-	echo ""
-	echo "WIDS"
-	echo "  A list of an arbitrary number of WID."
-	echo ""
-	echo "Gap    --gap GAP"
-	echo "  GAP is an int representing a border between the window and the geometry."
-	echo ""
-	echo "Geometry    --geometry X0 Y0 X1 Y1"
-	echo "  X0 = the left most x boundary to use"
-	echo "  Y0 = the left most y boundary to use"
-	echo "  X1 = the right most x boundary to use"
-	echo "  Y1 = the right most y boundary to use"
-	echo "X0 Y0 X1 and Y1 can be set to 'c' to use their current value."
-	echo ""
-	echo "Grid    -G, --grid GRID [BEHAVIOR POSITION WIDS | BEHAVIOR WIDS | POSITION WIDS | WIDS]..."
-	echo "  GRID is two ints connected by an 'x'"
-	echo "    Example: 3x3"
-	echo "      +-----------------------------+"
-	echo "      |         |         |         |"
-	echo "      |         |         |         |"
-	echo "      |         |         |         |"
-	echo "      |---------+---------+---------|"
-	echo "      |         |         |         |"
-	echo "      |         |         |         |"
-	echo "      |         |         |         |"
-	echo "      |---------+---------+---------|"
-	echo "      |         |         |         |"
-	echo "      |         |         |         |"
-	echo "      |         |         |         |"
-	echo "      +-----------------------------+"
-	echo ""
-	echo "  BEHAVIOR is one of the follwing args"
-	echo "    --x-shift = The window after the next one will be shifted on the x axis"
-	echo "    --y-shift = The window after the next one will be shifted on the y axis. This is the Default setting."
-	echo "    --no-auto = The windows will not be shifted at all, and only be placed in specified positions"
-	echo "  BEHAVIOR does not effect the placement of the current window, instead it adjusts where placemaker thinks the following window should be put"
-	echo ""
-	echo "  POSITION is two ints connected by an ','"
-	echo "    Example: 0,0	This will place the window in the top left cell of a 3x3 grid"
-	echo "      +-----------------------------+"
-	echo "      |         |         |         |"
-	echo "      |   wid   |         |         |"
-	echo "      |         |         |         |"
-	echo "      |---------+---------+---------|"
-	echo "      |         |         |         |"
-	echo "      |         |         |         |"
-	echo "      |         |         |         |"
-	echo "      |---------+---------+---------|"
-	echo "      |         |         |         |"
-	echo "      |         |         |         |"
-	echo "      |         |         |         |"
-	echo "      +-----------------------------+"
-	echo "  Or you can specify the number of cells that will be filled by connecting two pos with a '+'"
-	echo "    Example: 0,0+2,3	This will place the window in the top left cell through the middle bottom cell of a 3x3 grid"
-	echo "      +-----------------------------+"
-	echo "      |                   |         |"
-	echo "      |                   |         |"
-	echo "      |                   |         |"
-	echo "      |                   +---------|"
-	echo "      |                   |         |"
-	echo "      |        wid        |         |"
-	echo "      |                   |         |"
-	echo "      |                   +---------|"
-	echo "      |                   |         |"
-	echo "      |                   |         |"
-	echo "      |                   |         |"
-	echo "      +-----------------------------+"
-	echo ""
-	echo "Place    -p, --place X Y W H WID"
-	echo "  X = the x position of the window"
-	echo "  Y = the y position of the window"
-	echo "  W = the width of the window"
-	echo "  H = the height of the window"
-	echo "X Y Y and H can be set to 'c' to use their current value."
-	echo ""
-	echo "Slam    -S, --slam DIRECTION WID"
-	echo "  DIRECTION is one of:"
-	echo "  up         | north"
-	echo "  right      | east"
-	echo "  down       | south"
-	echo "  left       | west"
-	echo "  upperleft  | northwest"
-	echo "  upperright | northeast"
-	echo "  lowerleft  | southwest"
-	echo "  lowerright | southeast"
-	echo ""
-	echo "Tile    -T, --tile RATIO PATTERN WIDS"
-	echo "  RATIO is two ints connected by an '/'"
-	echo "    The first int is the number of cells for the master window."
-	echo "    The second int is the total number of cells"
-	echo "    Example: 3/5	The master window takes up 3 cell while the sub windows take up 2"
-	echo "  PATTERN is one of:"
-	echo "    monocle | max    | m = single window displayed filling all of given area"
-	echo "    rstack  | vstack | r = main window displayed on the left with the stack on the right"
-	echo "    lstack  |        | l = main window displayed on the right with the stack on the left"
-	echo "    bstack  | hstack | b = main window displayed on the top with the stack on the bottom"
-	echo "    tstack  |        | t = main window displayed on the bottom with the stack on the top"
-	echo ""
-}
-
-# Print Usage information
-# Arguments:
 fn_usage() {
 	echo "Usage: placemaker [SETTINGS] [MODE]"
 	echo "Place windows at specified positions throughout a geometry."
 	echo ""
 	echo "SETTINGS"
-	echo "  --flip			flip the window placement along the y axis"
+	echo "  --flip			flip the y placement of windows"
 	echo "  --gap GAP			specify placement bounds"
 	echo "  --geometry X0 Y0 X1 Y1	specify placement bounds"
 	echo "  --ignore-bor			ignore the output of 'wattr b wid' when placing"
-	echo "  --mirror			mirror the window placement along the x axis"
+	echo "  --mirror			mirror the x placement of windows"
+	echo "  --print			window adjustments are only printed to stdout"
+	echo "  --quiet			window adjustments are not printed to stdout"
 	echo ""
 	echo "  -h, --help			display this help text"
 	echo "  --more-help			additional help text"
 	echo ""
 	echo "MODE"
-	echo "  -c, --center WID		center a window"
+	echo "  -C, --center WID		center a window"
 	echo "  -G, --grid GRID POSITION WIDS	place windows in a grid cells"
-	echo "  -M, --max DIMENSION WID 	maximize a windows in a given dimension"
-	echo "  -p, --place X Y W H WID	place windows in a given position"
-	echo "  -S, --slam DIRECTION WID	send a window in a direction"
+	echo "  -M, --max M_DIR WID 	maximize a windows in a given dimension"
+	echo "  -P, --place X Y W H WID	place windows in a given position"
+	echo "  -S, --slam S_DIR WID	send a window in a direction"
 	echo "  -T, --tile RATIO PATTERN WIDS	place windows using a pattern"
 }
 
@@ -808,10 +715,6 @@ do
 	case "$1" in
 		"-h" | "--help" )
 			fn_usage
-			exit;;
-		"--more-help" )
-			fn_usage
-			fn_usageMore
 			exit;;
 		"--flip" )
 			fn_setFlip
@@ -828,7 +731,13 @@ do
 		"--mirror" )
 			fn_setMirror
 			shift 1;;
-		"-c" | "--center" )
+		"--print" )
+			PRINT=1
+			shift 1;;
+		"--quiet" )
+			QUIET=1
+			shift 1;;
+		"-C" | "--center" )
 			shift 1
 			fn_centerWid $@
 			exit;;
@@ -840,7 +749,7 @@ do
 			shift 1
 			fn_maxWid $@
 			exit;;
-		"-p" | "--place" )
+		"-P" | "--place" )
 			shift 1
 			fn_teleportWid $@
 			exit;;
