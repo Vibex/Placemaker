@@ -136,7 +136,7 @@ By appending additional information to a <code>WID</code> you can adjust a windo
   - By appending <code>+X,Y,W,H</code> to a <code>WID</code> you can adjust the windows position after placemaker has processed the window, but before it has been moved.
     - Example: <code>0x00000000+10,20,-10,-20</code> will move 0x00000000 10 pixels to the right and 20 pixels down, and decrease its width by 10 pixels and its height by 20 pixels. This will occur regardless of what function processes the window.
 
-#### Advanced Grid Placement
+#### Grid Placement
 
 <code>--grid</code> is the most complex function in placemaker, as it is designed to allow others to create there own tiling patterns to fit their own needs. Its true argument syntax is
 
@@ -148,10 +148,33 @@ and it can take any number of these arguments, dynamically adjusting window plac
 
 By default <code>--grid</code> will automatically place all windows after the first <code>WID</code> one cell lower. This behavior can be altered by passing a <code>BEHAVIOR</code>. 
 
-- <code>BEHAVIOR</code> is one of:
-  - <code>--x-shift</code> : <code>WIDS</code> after this one will be placed one cell to the right.
-  - <code>--y-shift</code> : <code>WIDS</code> after this one will be placed one cell lower.
-  - <code>--no-auto</code> : All <code>WIDS</code> will be placed in this location.
+<code>BEHAVIOR</code> is one of:
+
+- <code>--x-shift</code> : <code>WIDS</code> after this one will be placed one cell to the right.
+- <code>--y-shift</code> : <code>WIDS</code> after this one will be placed one cell lower. This the default.
+- <code>--no-auto</code> : All <code>WIDS</code> will be placed in this location.
+
+##### Position
+
+In addition to the format specified in the Usage section, a position can also be two sets of integers connected by the character <code>,</code>, connected by the character <code>+</code>. The first set of integers represents a standard  <code>POSITION</code>. The second set is the number of cells that the <code>WID</code> will occupy.
+
+Example: <code>0,0+1,2</code> will place a window in the top left cell, through the left middle cell of a <code>2x3</code> grid.
+
+```
++----------------+----------------+
+|                |                |
+|                |                |
+|                |                |
+|      wid       +----------------+
+|                |                |
+|                |                |
+|                |                |
++----------------+----------------+
+|                |                |
+|                |                |
+|                |                |
++----------------+----------------+
+```
 
 ## Todo
 
