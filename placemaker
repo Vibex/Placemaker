@@ -90,7 +90,7 @@ fn_geometry() {
 # m = map
 # Arguments: wid attribute
 fn_getAttribute() {
-	local wid=$(echo "$1" | cut -d : -f 1)
+	local wid=$(echo "$1" | cut -d + -f 1 | cut -d : -f 1)
 	wattr "$2" "$wid"
 }
 
@@ -98,7 +98,7 @@ fn_getAttribute() {
 # A wid is an id or an 'id+adjust' or an ' id:place ' or an ' id+adjust:place '
 # Examples:
 # 0x00000000
-# 0x00000000+5,5,-5,-5
+# 0x00000000+10,20,-10,-20
 # x, y, w, or h are either an int or ' c '
 # If an int, than set that value
 # If ' c ' than the value is not updated
@@ -120,25 +120,32 @@ fn_teleportWid() {
 	fi
 
 	# Check if x,y,w,h are c and if they are make them the current value
+	# If they aren't adjust them accordingly
 	local bor="$(fn_getAttribute "$wid" b)"
 	[[ "$IGNOREB" -eq 1 ]] && bor=0
-	local nx=$1
-	local ny=$2
+	# Check x
 	if [[ "$1" == "c" ]]; then
-		nx=$(fn_getAttribute "$wid" "x")
+		local nx=$(fn_getAttribute "$wid" "x")
+	else
+		local nx=$(( $1 + $GAP ))
 	fi
+	# Check y
 	if [[ "$2" == "c" ]]; then
-		ny=$(fn_getAttribute "$wid" "y")
+		local ny=$(fn_getAttribute "$wid" "y")
+	else
+		local ny=$(( $2 + $GAP ))
 	fi
+	# Check w
 	if [[ "$3" == "c" ]]; then
 		local nw=$(fn_getAttribute "$wid" "w")
 	else
-		local nw=$(( $3 - $bor - $bor ))
+		local nw=$(( $3 - $GAP - $GAP - $bor - $bor ))
 	fi
+	# Check h
 	if [[ "$4" == "c" ]]; then
 		local nh=$(fn_getAttribute "$wid" "h")
 	else
-		local nh=$(( $4 - $bor - $bor ))
+		local nh=$(( $4 - $GAP - $GAP - $bor - $bor ))
 	fi
 
 	# Mirror if set
@@ -150,13 +157,13 @@ fn_teleportWid() {
 		ny=$(( $GY1 - ( $ny + $nh ) + $GY0 ))
 	fi
 
-	# Alter sizing with gaps and borders
-	nx=$(( $nx + $GAP + $ox ))
-	ny=$(( $ny + $GAP + $oy ))
-	nw=$(( $nw - $GAP - $GAP + $ow ))
-	nh=$(( $nh - $GAP - $GAP + $oh ))
+	# Alter sizing with adjustments
+	nx=$(( $nx + $ox ))
+	ny=$(( $ny + $oy ))
+	nw=$(( $nw + $ow ))
+	nh=$(( $nh + $oh ))
 
-	# Move window
+	# Move and print window
 	[[ "$PRINT" -eq 0 ]] && wtp $nx $ny $nw $nh $wid 
 	[[ "$QUIET" -eq 0 ]] && echo "$nx $ny $nw $nh $wid"
 }
@@ -234,6 +241,9 @@ fn_maxWid() {
 # upperright	|	northeast
 # lowerleft		|	southwest
 # lowerright	|	southeast
+# xcenter
+# ycenter
+# center
 # Arguments: s_dir wid
 fn_slamWid() {
 	local wid="$2"
@@ -299,16 +309,14 @@ fn_slamWid() {
 # Center a window
 # Arguments: wid
 fn_centerWid() {
+	# Set wid
+	local wid="$1"
+
 	# Get starting geometry
-	local nx=$(fn_getAttribute "$1" "x")
-	local ny=$(fn_getAttribute "$1" "y")
-	if [[ -z "$2" ]]; then
-		local nw=$(fn_getAttribute "$1" "w")
-		local nh=$(fn_getAttribute "$1" "h")
-	else
-		local nw=$2
-		local nh=$3
-	fi
+	local nx=$(fn_getAttribute "$wid" "x")
+	local ny=$(fn_getAttribute "$wid" "y")
+	local nw=$(fn_getAttribute "$wid" "w")
+	local nh=$(fn_getAttribute "$wid" "h")
 
 	# Get center of work area
 	local gcx=$(( ( $GX1 - $GX0 ) / 2 ))
