@@ -31,11 +31,11 @@ Used to position windows based on their id value, <code>WID</code>.
 
 - <code>-V, --save [ATOM] WID</code> : Save a windows current geometry to an <code>ATOM</code>. If no <code>ATOM</code> is specified, the string <code>PLACEMAKER_SAVE</code> is used.
 
-  - <code>ATOM</code> is a string representing the X atom that the geometry will be saved to.
+  - <code>ATOM</code> is a string representing the X atom that the geometry will be saved to. The only restrictions on an <code>ATOM</code> are that they can not begin with the characters <code>0x</code> or be the string <code>--erase</code> as these are used for other functionality.
 
-- <code>-R, --restore [ATOM] WID</code> : Restore a window to a saved geometry. If no <code>ATOM</code> is specified, the string <code>PLACEMAKER_SAVE</code> is used. The definition of an <code>ATOM</code> can be found with the <code>--save</code> argument.
+- <code>-R, --restore [ATOM] [--erase] WID</code> : Restore a window to a saved geometry. If no <code>ATOM</code> is specified, the string <code>PLACEMAKER_SAVE</code> is used. The definition of an <code>ATOM</code> can be found with the <code>--save</code> argument. If the <code>--erase</code> argument is passed before the <code>WID</code> the atom will be set to an empty string after the window is positioned.
 
-- <code>-C, --center WID</code> : Center a given window within the set geometry.
+- <code>-C, --center WID</code> : Center a given window within the set geometry. <code>--gap 0</code> is automatically set when <code>--center</code> is called.
 
 - <code>-S, --slam S_DIR WID</code> :  Move the window to the geometry bounds in a specified direction.
 
@@ -60,7 +60,7 @@ Used to position windows based on their id value, <code>WID</code>.
     - <code>vertical </code>: Maximize the window to fill the full vertical geometry.
     - <code>full</code> : Maximize the window to fill the full geometry.
 
-- <code>-L, --scale PERCENT WID</code> : Scale a windows size by a given percentage.
+- <code>-L, --scale PERCENT WID</code> : Scale a windows size by a given percentage. <code>--ignore-bor</code> is automatically set when <code>--scale</code> is called.
 
 - <code>-G, --grid GRID [POSITION] WIDS</code> :  Places a windows in virtual grid cells, starting at a specified position. If no <code>POSITION</code> is passed, it defaults to <code>0,0</code>.
 
@@ -138,11 +138,19 @@ Used to position windows based on their id value, <code>WID</code>.
 
 #### Direct Window Adjustments
 
-By appending additional information to a <code>WID</code> you can adjust a window after it has been processed by placemakers other functions.
+By appending additional information to a <code>WID</code> you can adjust a window after it has been processed by placemakers other functions. Any number of adjustments can be appended in any order to a <code>WID</code>.
 
-- Geometry Adjustments
+- Geometry Adjustment
   - By appending <code>+X,Y,W,H</code> to a <code>WID</code> you can adjust the windows position after placemaker has processed the window, but before it has been moved.
     - Example: <code>0x00000000+10,20,-10,-20</code> will move 0x00000000 10 pixels to the right and 20 pixels down, and decrease its width by 10 pixels and its height by 20 pixels. This will occur regardless of what function processes the window.
+- Position Adjustment
+  - By appending <code>+S_DIR</code> (the parameter for the <code>--slam</code> function) to a <code>WID</code> you can position a window within its determined geometry. When this is done the windows width and height will be their current value. This can be used in conjunction with <code>--tile</code> to produce a psuedo tiled mode, where windows are positioned in their tiled locations, but are free to be any size.
+    - Example: <code>0x00000000+upperright</code> will position 0x00000000 in the upper right hand corner of its set geometry.
+- Reflection Adjustment
+  - By appending <code>+mirror</code> or <code>+flip</code> you can toggle the mirror or flip state for the window.
+- WID Adjustment
+  - By appending <code>+WID</code> you can change what window will actually be effected by the movement. This can be used to "steal" the position of a window and apply it to something else.
+    - Example: <code>0x00000000+0x00000001</code> will use 0x00000000 for all of the window calculations, but move 0x00000001.
 
 #### Grid Placement
 
@@ -192,7 +200,7 @@ Example: <code>-I parseGrid x 3x4</code> will call the fn_parseGrid function, an
 
 A complete list of functions and documentation can be found in the source code, but the key functions are:
 
-- <code>getAttribute</code> : Get an internal window attribute.
+- <code>getAttribute</code> : Get an internal window attribute, ignoring direct window adjustments if they are present.
 - <code>parseGrid</code> : Return a requested value from a <code>GRID</code>.
 - <code>parsePosition</code> : Return a requested value from a <code>POSITION</code>.
 - <code>checkPosition</code> : If <code>parsePosition</code> returns the character <code>o</code> set an override value
@@ -203,8 +211,6 @@ A complete list of functions and documentation can be found in the source code, 
 * Add column and row patterns.
 * Add dwindle pattern variants to lstack, rstack, bstack, and tstack.
 * Add ability to read from stdin.
-* Add additional direct window adjustments.
 * Add inverted behaviors to Grid.
-* Add support for WM like berry that don't always work well with wmutils.
 * Add example patterns to allow users to jumpstart their own patterns.
 * Possibly rewrite in C++ (though there are pros and cons to this).

@@ -83,7 +83,7 @@ fn_geometry() {
 # Arguments: [ATOM] WID
 fn_saveWid() {
 	local atom="$1"
-	if [[ "$atom" == "0x"* ]]; then
+	if [[ "$atom" == "0x"* || "$atom" == "--erase" ]]; then
 		atom="PLACEMAKER_SAVE"
 	else
 		shift 1
@@ -97,23 +97,28 @@ fn_saveWid() {
 	local ny=$(fn_getAttribute "y" "$wid")
 	local nw=$(fn_getAttribute "w" "$wid")
 	local nh=$(fn_getAttribute "h" "$wid")
-	atomx "$atom"="$nx $ny $nw $nh" "$wid"
+	atomx "$atom"="$nx $ny $nw $nh" "$wid" > /dev/null
 }
 
 # Restore a window to a saved position
 # ATOM definition with fn_saveWid
-# Arguments: [ATOM] WID
+# Arguments: [ATOM] [--erase] WID
 fn_restoreWid() {
 	atom="$1"
-	if [[ "$atom" == "0x"* ]]; then
+	if [[ "$atom" == "0x"* || "$atom" == "--erase" ]]; then
 		atom="PLACEMAKER_SAVE"
 	else
 		shift 1
 	fi
 	
+	local erase=0
+	[[ "$1" == "--erase" ]] && erase=1 && shift 1
+	
 	# Get wid
 	local wid="$1"
-	wtp $(atomx "$atom" "$wid") "$wid" 
+	
+	wtp $(atomx "$atom" "$wid") "$wid"
+	[[ "$erase" -eq 1 ]] && atomx "$atom"="" "$wid"
 }
 
 # Get an attribute for the given window
@@ -128,34 +133,62 @@ fn_restoreWid() {
 # m = map
 # Arguments: attribute wid
 fn_getAttribute() {
-	local wid=$(echo "$2" | cut -d + -f 1 | cut -d : -f 1)
+	local wid=$(echo "$2" | cut -d + -f 1)
 	wattr "$1" "$wid"
 }
 
 # Teleport a window to a given position and size
-# A wid is an id or an 'id+adjust' or an ' id:place ' or an ' id+adjust:place '
+# A wid is an id or an 'id+adjust...'
 # Examples:
 # 0x00000000
-# 0x00000000+10,20,-10,-20
+# 0x00000000+10,20,-10,-20		Adjust geometry
+# 0x00000000+upperleft			Adjust position (takes any S_DIR)
+# 0x00000000+mirror 			Toggle mirror
+# 0x00000000+flip				Toggle flip
+# 0x00000000+0x00000001			Change targeted wid
 # x, y, w, or h are either an int or ' c '
 # If an int, than set that value
 # If ' c ' than the value is not updated
 # Arguments: x y w h wid
 fn_teleportWid() {
-	local wid=$(echo "$5" | cut -d + -f 1 | cut -d : -f 1)
 
-	# Deal with adjust option
+	# Deal with adjust options
 	local ox=0
 	local oy=0
 	local ow=0
 	local oh=0
-	if [[ "$5" == *"+"* ]]; then
-		local ototal="$(echo "$5" | cut -d + -f 2 | cut -d : -f 1)"
-		ox=$(echo "$ototal" | cut -d , -f 1)
-		oy=$(echo "$ototal" | cut -d , -f 2)
-		ow=$(echo "$ototal" | cut -d , -f 3)
-		oh=$(echo "$ototal" | cut -d , -f 4)
-	fi
+	local ap=0
+	local am=$MIRROR
+	local af=$FLIP
+
+	for a in $(echo "$5" | tr "+" " "); do
+		if [[ "$a" == "0x"* ]]; then
+			local wid=$a
+		elif [[ "$a" == *","* ]]; then
+			local tox=$(echo "$a" | cut -d , -f 1)
+			local toy=$(echo "$a" | cut -d , -f 2)
+			local tow=$(echo "$a" | cut -d , -f 3)
+			local toh=$(echo "$a" | cut -d , -f 4)
+			ox=$(( $tox + $ox ))
+			oy=$(( $toy + $oy ))
+			ow=$(( $tow + $ow ))
+			oh=$(( $toh + $oh ))
+		elif [[ "$a" == "mirror" ]]; then
+			if [[ "$am" -eq 0 ]]; then
+				am=1
+			else
+				am=0
+			fi
+		elif [[ "$a" == "flip" ]]; then
+			if [[ "$af" -eq 0 ]]; then
+				af=1
+			else
+				af=0
+			fi
+		else
+			ap="$a"
+		fi
+	done
 
 	# Check if x,y,w,h are c and if they are make them the current value
 	# If they aren't adjust them accordingly
@@ -187,13 +220,9 @@ fn_teleportWid() {
 	fi
 
 	# Mirror if set
-	if [[ $MIRROR -eq 1 ]]; then
-		nx=$(( $GX1 - ( $nx + $nw ) + $GX0 ))
-	fi
+	[[ $am -eq 1 ]] && nx=$(( $GX1 - ( $nx + $nw ) + $GX0 ))
 	# Flip if set
-	if [[ $FLIP -eq 1 ]]; then
-		ny=$(( $GY1 - ( $ny + $nh ) + $GY0 ))
-	fi
+	[[ $af -eq 1 ]] && ny=$(( $GY1 - ( $ny + $nh ) + $GY0 ))
 
 	# Alter sizing with adjustments
 	nx=$(( $nx + $ox ))
@@ -202,8 +231,16 @@ fn_teleportWid() {
 	nh=$(( $nh + $oh ))
 
 	# Move and print window
-	[[ "$PRINT" -eq 0 ]] && wtp $nx $ny $nw $nh $wid 
-	[[ "$QUIET" -eq 0 ]] && echo "$nx $ny $nw $nh $wid"
+	if [[ "$ap" == "0" ]]; then
+		[[ "$PRINT" -eq 0 ]] && wtp $nx $ny $nw $nh $wid 
+		[[ "$QUIET" -eq 0 ]] && echo "$nx $ny $nw $nh $wid"
+	else
+		local sx=$(( $nx - $GAP ))
+		local sy=$(( $ny - $GAP ))
+		local sw=$(( $nw + $nx - ($GAP / 2) ))
+		local sh=$(( $nh + $ny - ($GAP / 2) ))
+		fn_slamWidGeometry "$ap" "$sx" "$sy" "$sw" "$sh" "0" "$wid"
+	fi
 }
 
 # Scale a windows size by a percentage
@@ -288,7 +325,7 @@ fn_maxWid() {
 	fn_teleportWid "$nx" "$ny" "$nw" "$nh" "$wid"
 }
 
-# Slam a window in a specified direction
+# Slam a window in a specified direction in specified geometry
 # Directions are:
 # up	|	north
 # right	|	east
@@ -301,9 +338,16 @@ fn_maxWid() {
 # xcentery # NOT PROGRAMMED YET
 # ycenter # NOT PROGRAMMED YET
 # center # NOT PROGRAMMED YET
-# Arguments: s_dir wid
-fn_slamWid() {
-	local wid="$2"
+# Arguments: s_dir x0 y0 x1 y1 gap wid
+fn_slamWidGeometry() {
+	local wid="$7"
+
+	# Geometry to use
+	local NGX0=$2
+	local NGY0=$3
+	local NGX1=$4
+	local NGY1=$5
+	local NGAP=$6
 
 	# Get starting geometry
 	local nx=$(fn_getAttribute "x" "$wid")
@@ -316,43 +360,43 @@ fn_slamWid() {
 	# Slam the window in the appropriate direction
 	case "$1" in
 		"up" | "north")
-			ny="$GY0"
+			ny="$NGY0"
 			nx="c"
 			nw="c"
 			nh="c";;
 		"right" | "east")
-			nx=$(( $GX1 - $nw - $GAP - $GAP - $bor - $bor ))
+			nx=$(( $NGX1 - $nw - $NGAP - $NGAP - $bor - $bor ))
 			ny="c"
 			nw="c"
 			nh="c";;
 		"down" | "south")
-			ny=$(( $GY1 - $nh - $GAP - $GAP - $bor - $bor ))
+			ny=$(( $NGY1 - $nh - $NGAP - $NGAP - $bor - $bor ))
 			nx="c"
 			nw="c"
 			nh="c";;
 		"left" | "west")
-			nx="$GX0"
+			nx="$NGX0"
 			ny="c"
 			nw="c"
 			nh="c";;
 		"upperleft"  | "northwest" )
-			nx="$GX0"
-			ny="$GY0"
+			nx="$NGX0"
+			ny="$NGY0"
 			nw="c"
 			nh="c";;
 		"upperright" | "northeast" )
-			nx=$(( $GX1 - $nw - $GAP - $GAP - $bor - $bor ))
-			ny="$GY0"
+			nx=$(( $NGX1 - $nw - $NGAP - $NGAP - $bor - $bor ))
+			ny="$NGY0"
 			nw="c"
 			nh="c";;
 		"lowerleft"  | "southwest" )
-			nx="$GX0"
-			ny=$(( $GY1 - $nh - $GAP - $GAP - $bor - $bor ))
+			nx="$NGX0"
+			ny=$(( $NGY1 - $nh - $NGAP - $NGAP - $bor - $bor ))
 			nw="c"
 			nh="c";;
 		"lowerright" | "southeast" )
-			nx=$(( $GX1 - $nw - $GAP - $GAP - $bor - $bor ))
-			ny=$(( $GY1 - $nh - $GAP - $GAP - $bor - $bor ))
+			nx=$(( $NGX1 - $nw - $NGAP - $NGAP - $bor - $bor ))
+			ny=$(( $NGY1 - $nh - $NGAP - $NGAP - $bor - $bor ))
 			nw="c"
 			nh="c";;
 		*) echo "not a valid direction";;
@@ -361,6 +405,13 @@ fn_slamWid() {
 
 	# Move wid
 	fn_teleportWid "$nx" "$ny" "$nw" "$nh" "$wid"
+}
+
+# Slam a window in a specified direction
+# S_DIR definition is with fn_slamWidGeometry
+# Arguments: s_dir wid
+fn_slamWid() {
+	fn_slamWidGeometry $1 $GX0 $GY0 $GX1 $GY1 $GAP $2
 }
 
 # Center a window
