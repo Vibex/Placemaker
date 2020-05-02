@@ -78,6 +78,44 @@ fn_geometry() {
 	fi
 }
 
+# Save a windows position
+# An ATOM is any string that does not start with the characters "0x"
+# Arguments: [ATOM] WID
+fn_saveWid() {
+	local atom="$1"
+	if [[ "$atom" == "0x"* ]]; then
+		atom="PLACEMAKER_SAVE"
+	else
+		shift 1
+	fi
+	
+	# Get wid
+	local wid="$1"
+
+	# Get starting geometry
+	local nx=$(fn_getAttribute "x" "$wid")
+	local ny=$(fn_getAttribute "y" "$wid")
+	local nw=$(fn_getAttribute "w" "$wid")
+	local nh=$(fn_getAttribute "h" "$wid")
+	atomx "$atom"="$nx $ny $nw $nh" "$wid"
+}
+
+# Restore a window to a saved position
+# ATOM definition with fn_saveWid
+# Arguments: [ATOM] WID
+fn_restoreWid() {
+	atom="$1"
+	if [[ "$atom" == "0x"* ]]; then
+		atom="PLACEMAKER_SAVE"
+	else
+		shift 1
+	fi
+	
+	# Get wid
+	local wid="$1"
+	wtp $(atomx "$atom" "$wid") "$wid" 
+}
+
 # Get an attribute for the given window
 # This is just a left over from when there were other attribute retrieval methods
 # Attributes are:
@@ -260,9 +298,9 @@ fn_maxWid() {
 # upperright	|	northeast
 # lowerleft		|	southwest
 # lowerright	|	southeast
-# xcenter
-# ycenter
-# center
+# xcentery # NOT PROGRAMMED YET
+# ycenter # NOT PROGRAMMED YET
+# center # NOT PROGRAMMED YET
 # Arguments: s_dir wid
 fn_slamWid() {
 	local wid="$2"
@@ -728,8 +766,10 @@ fn_usage() {
 	echo "  -L, --scale PERCENT WID	scale a windows size"
 	echo "  -M, --max M_DIR WID 		maximize a windows in a given dimension"
 	echo "  -P, --place X Y W H WID	place windows in a given position"
+	echo "  -R, --restore WID		restore a windows position"
 	echo "  -S, --slam S_DIR WID		send a window in a direction"
 	echo "  -T, --tile RATIO PATTERN WIDS	place windows using a pattern"
+	echo "  -V, --save [STRING] WID	save a windows position"
 	echo ""
 	echo "  -I, --internal CMD		call an internal function"
 }
@@ -781,6 +821,10 @@ do
 			shift 1
 			fn_teleportWid $@
 			exit;;
+		"-R" | "--restore" )
+			shift 1
+			fn_restoreWid $@
+			exit;;
 		"-S" | "--slam" )
 			shift 1
 			fn_slamWid $@
@@ -788,6 +832,10 @@ do
 		"-T" | "--tile" )
 			shift 1
 			fn_tile $@
+			exit;;
+		"-V" | "--save" )
+			shift 1
+			fn_saveWid $@
 			exit;;
 		"-I" | "--internal" )
 			shift 1

@@ -29,6 +29,12 @@ Used to position windows based on their id value, <code>WID</code>.
 
 - `-P, --place X Y W H WID` :  Place a window at the specified <code>X</code> and <code>Y</code> coordinates, with a width of <code>W</code> and a height of <code>H</code>. <code>X</code>, <code>Y</code>, <code>W</code>, and <code>H</code> are all either an integer value or the character <code>c</code>. If they are set to <code>c</code> than the will use the windows current value.
 
+- <code>-V, --save [ATOM] WID</code> : Save a windows current geometry to an <code>ATOM</code>. If no <code>ATOM</code> is specified, the string <code>PLACEMAKER_SAVE</code> is used.
+
+  - <code>ATOM</code> is a string representing the X atom that the geometry will be saved to.
+
+- <code>-R, --restore [ATOM] WID</code> : Restore a window to a saved geometry. If no <code>ATOM</code> is specified, the string <code>PLACEMAKER_SAVE</code> is used. The definition of an <code>ATOM</code> can be found with the <code>--save</code> argument.
+
 - <code>-C, --center WID</code> : Center a given window within the set geometry.
 
 - <code>-S, --slam S_DIR WID</code> :  Move the window to the geometry bounds in a specified direction.
