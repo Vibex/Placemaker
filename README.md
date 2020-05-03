@@ -19,6 +19,8 @@ Used to alter the default behavior of placemaker.
 + <code>--flip</code> : Flip the y placement of windows.
 + <code>--mirror</code> : Mirror the x placement of windows.
 + <code>--ignore-bor</code> : Don't use the output of <code>wattr b WID</code> to adjust window placement.
++ <code>--autosave [ATOM]</code> : When set windows will automatically have their geometry saved to the specified <code>ATOM</code>. If no <code>ATOM</code> is specified, <code>PLACEMAKER_SAVE</code> is used. If an <code>ATOM</code> is specified, it will override the default <code>ATOM</code> used by <code>--save</code> and <code>--restore</code>.
+  + <code>ATOM</code> is a string representing the X atom that the geometry will be saved to. The only restrictions on an <code>ATOM</code> are that they can not begin with the characters <code>0x</code> or be the string <code>--erase</code> as these are used for other functionality.
 + <code>--print</code> : Don't move windows, only print adjustments to stdout.
 + <code>--quiet</code> : Don't print window adjustments to stdout. 
 + <code>-h, --help</code> : Print help text to stdout.
@@ -29,15 +31,11 @@ Used to position windows based on their id value, <code>WID</code>.
 
 - `-P, --place X Y W H WID` :  Place a window at the specified <code>X</code> and <code>Y</code> coordinates, with a width of <code>W</code> and a height of <code>H</code>. <code>X</code>, <code>Y</code>, <code>W</code>, and <code>H</code> are all either an integer value or the character <code>c</code>. If they are set to <code>c</code> than the will use the windows current value.
 
-- <code>-V, --save [ATOM] WID</code> : Save a windows current geometry to an <code>ATOM</code>. If no <code>ATOM</code> is specified, the string <code>PLACEMAKER_SAVE</code> is used.
+- <code>-V, --save [ATOM] WID</code> : Save a windows current geometry to an <code>ATOM</code>. If no <code>ATOM</code> is specified, <code>PLACEMAKER_SAVE</code> is used. The definition of an <code>ATOM</code> can be found with the <code>--autosave</code> argument.
 
-  - <code>ATOM</code> is a string representing the X atom that the geometry will be saved to. The only restrictions on an <code>ATOM</code> are that they can not begin with the characters <code>0x</code> or be the string <code>--erase</code> as these are used for other functionality.
+- <code>-R, --restore [ATOM] [--erase] WID</code> : Restore a window to a saved geometry. If no <code>ATOM</code> is specified, <code>PLACEMAKER_SAVE</code> is used. The definition of an <code>ATOM</code> can be found with the <code>--autosave</code> argument. If the <code>--erase</code> argument is passed, the atom will be set to an empty string after the window is positioned.
 
-- <code>-R, --restore [ATOM] [--erase] WID</code> : Restore a window to a saved geometry. If no <code>ATOM</code> is specified, the string <code>PLACEMAKER_SAVE</code> is used. The definition of an <code>ATOM</code> can be found with the <code>--save</code> argument. If the <code>--erase</code> argument is passed before the <code>WID</code> the atom will be set to an empty string after the window is positioned.
-
-- <code>-C, --center WID</code> : Center a given window within the set geometry. <code>--gap 0</code> is automatically set when <code>--center</code> is called.
-
-- <code>-S, --slam S_DIR WID</code> :  Move the window to the geometry bounds in a specified direction.
+- <code>-S, --slam S_DIR WID</code> :  Move the window to in a specified direction within the bounds of the geometry.
 
   - <code>S_DIR</code> is one of:
     - <code>up</code> or <code>north</code> : Move the window to the top bound of the geometry.
@@ -47,7 +45,10 @@ Used to position windows based on their id value, <code>WID</code>.
     - <code>upperleft</code> or <code>northwest</code> : Move the window to the top and left bounds of the geometry.
     - <code>upperright</code> or <code>northeast</code> : Move the window to the top and right bounds of the geometry.
     - <code>lowerleft</code> or <code>southwest</code> : Move the window to the bottom and left bounds of the geometry.
-    - <code>lowerright</code> or <code>southeast</code> : Move the window to the top and left bounds of the geometry.
+    - <code>lowerright</code> or <code>southeast</code> : Move the window to the bottom and right bounds of the geometry.
+    - <code>xcenter</code> or <code>hcenter</code> : Centers the window horizontally within the bounds of the geometry. <code>--gap 0</code> is automatically set.
+    - <code>ycenter</code> or <code>vcenter</code> : Centers the window vertically within the bounds of the geometry. <code>--gap 0</code> is automatically set.
+    - <code>center</code> : Centers the window within the bounds of the geometry. <code>--gap 0</code> is automatically set.
 
 - <code>-M, --max M_DIR WID</code> : Maximize a window in a specified direction.
 
@@ -208,6 +209,7 @@ A complete list of functions and documentation can be found in the source code, 
 
 ## Todo
 
+* Allow all functions to take in multiple <code>WIDS</code>.
 * Add column and row patterns.
 * Add dwindle pattern variants to lstack, rstack, bstack, and tstack.
 * Add ability to read from stdin.

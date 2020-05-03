@@ -54,6 +54,14 @@ PRINT=0
 # 1 = True
 QUIET=0
 
+# Are positions autosaved
+# 0 = False
+# 1 = True
+AUTOSAVE=0
+
+# What atom are autosaves made to
+SAVE="PLACEMAKER_SAVE"
+
 ####
 #### FUNCTIONS
 ####
@@ -78,13 +86,20 @@ fn_geometry() {
 	fi
 }
 
-# Save a windows position
+# Save a windows at geometry
+# An ATOM is any string that does not start with the characters "0x"
+# Arguments: ATOM X Y W H WID
+fn_saveWidAt() {
+	atomx "$1"="$2 $3 $4 $5" $6 > /dev/null
+}
+
+# Save a windows current position
 # An ATOM is any string that does not start with the characters "0x"
 # Arguments: [ATOM] WID
 fn_saveWid() {
 	local atom="$1"
 	if [[ "$atom" == "0x"* || "$atom" == "--erase" ]]; then
-		atom="PLACEMAKER_SAVE"
+		atom="$SAVE"
 	else
 		shift 1
 	fi
@@ -97,16 +112,16 @@ fn_saveWid() {
 	local ny=$(fn_getAttribute "y" "$wid")
 	local nw=$(fn_getAttribute "w" "$wid")
 	local nh=$(fn_getAttribute "h" "$wid")
-	atomx "$atom"="$nx $ny $nw $nh" "$wid" > /dev/null
+	fn_saveWidAt "$atom" "$nx" "$ny" "$nw" "$nh" "$wid"
 }
 
 # Restore a window to a saved position
-# ATOM definition with fn_saveWid
+# ATOM definition with fn_saveWidAt
 # Arguments: [ATOM] [--erase] WID
 fn_restoreWid() {
 	atom="$1"
 	if [[ "$atom" == "0x"* || "$atom" == "--erase" ]]; then
-		atom="PLACEMAKER_SAVE"
+		atom="$SAVE"
 	else
 		shift 1
 	fi
@@ -230,10 +245,12 @@ fn_teleportWid() {
 	nw=$(( $nw + $ow ))
 	nh=$(( $nh + $oh ))
 
-	# Move and print window
+	# Move, save, and print the window
 	if [[ "$ap" == "0" ]]; then
 		[[ "$PRINT" -eq 0 ]] && wtp $nx $ny $nw $nh $wid 
+		[[ "$AUTOSAVE" -eq 1 ]] && fn_saveWidAt $SAVE $nx $ny $nw $nh $wid 
 		[[ "$QUIET" -eq 0 ]] && echo "$nx $ny $nw $nh $wid"
+	# A position adjustment was set, than position it
 	else
 		local sx=$(( $nx - $GAP ))
 		local sy=$(( $ny - $GAP ))
@@ -318,7 +335,7 @@ fn_maxWid() {
 				nx="$GX0"
 				nh=$(( $GY1 - $GY0 ))
 				ny="$GY0";;
-			*) echo "not a valid dimension";;
+			*) echo "$1 is not a valid M_DIR"; exit;;
 	esac
 
 	# Move wid
@@ -327,17 +344,17 @@ fn_maxWid() {
 
 # Slam a window in a specified direction in specified geometry
 # Directions are:
-# up	|	north
-# right	|	east
-# down	|	south
-# left	|	west
-# upperleft		|	northwest
-# upperright	|	northeast
-# lowerleft		|	southwest
-# lowerright	|	southeast
-# xcentery # NOT PROGRAMMED YET
-# ycenter # NOT PROGRAMMED YET
-# center # NOT PROGRAMMED YET
+# up		 | north
+# right		 | east
+# down		 | south
+# left		 | west
+# upperleft	 | northwest
+# upperright | northeast
+# lowerleft	 | southwest
+# lowerright | southeast
+# xcenter	 | hcenter
+# ycenter	 | vcenter
+# center	 | 
 # Arguments: s_dir x0 y0 x1 y1 gap wid
 fn_slamWidGeometry() {
 	local wid="$7"
@@ -361,47 +378,52 @@ fn_slamWidGeometry() {
 	case "$1" in
 		"up" | "north")
 			ny="$NGY0"
-			nx="c"
-			nw="c"
-			nh="c";;
+			nx="c";;
 		"right" | "east")
 			nx=$(( $NGX1 - $nw - $NGAP - $NGAP - $bor - $bor ))
-			ny="c"
-			nw="c"
-			nh="c";;
+			ny="c";;
 		"down" | "south")
 			ny=$(( $NGY1 - $nh - $NGAP - $NGAP - $bor - $bor ))
-			nx="c"
-			nw="c"
-			nh="c";;
+			nx="c";;
 		"left" | "west")
 			nx="$NGX0"
-			ny="c"
-			nw="c"
-			nh="c";;
+			ny="c";;
 		"upperleft"  | "northwest" )
 			nx="$NGX0"
-			ny="$NGY0"
-			nw="c"
-			nh="c";;
+			ny="$NGY0";;
 		"upperright" | "northeast" )
 			nx=$(( $NGX1 - $nw - $NGAP - $NGAP - $bor - $bor ))
-			ny="$NGY0"
-			nw="c"
-			nh="c";;
+			ny="$NGY0";;
 		"lowerleft"  | "southwest" )
 			nx="$NGX0"
-			ny=$(( $NGY1 - $nh - $NGAP - $NGAP - $bor - $bor ))
-			nw="c"
-			nh="c";;
+			ny=$(( $NGY1 - $nh - $NGAP - $NGAP - $bor - $bor ));;
 		"lowerright" | "southeast" )
 			nx=$(( $NGX1 - $nw - $NGAP - $NGAP - $bor - $bor ))
-			ny=$(( $NGY1 - $nh - $NGAP - $NGAP - $bor - $bor ))
-			nw="c"
-			nh="c";;
-		*) echo "not a valid direction";;
+			ny=$(( $NGY1 - $nh - $NGAP - $NGAP - $bor - $bor ));;
+		"xcenter" | "hcenter" )
+			GAP=0
+			local gcx=$(( ( $NGX1 - $NGX0 ) / 2 ))
+			gcx=$(( $gcx + $NGX0 ))
+			nx=$(( $gcx - ( $nw / 2 ) ));;
+		"ycenter" | "vcenter" )
+			GAP=0
+			local gcy=$(( ( $NGY1 - $NGY0 ) / 2 ))
+			gcy=$(( $gcy + $NGY0 ))
+			ny=$(( $gcy - ( $nh / 2 ) ));;
+		"center" )
+			GAP=0
+			local gcx=$(( ( $NGX1 - $NGX0 ) / 2 ))
+			local gcy=$(( ( $NGY1 - $NGY0 ) / 2 ))
+			gcx=$(( $gcx + $NGX0 ))
+			gcy=$(( $gcy + $NGY0 ))
+			nx=$(( $gcx - ( $nw / 2 ) ))
+			ny=$(( $gcy - ( $nh / 2 ) ));;
+		*) echo "$1 is not a valid S_DIR";;
 	
 	esac
+
+	nw="c"
+	nh="c"
 
 	# Move wid
 	fn_teleportWid "$nx" "$ny" "$nw" "$nh" "$wid"
@@ -412,34 +434,6 @@ fn_slamWidGeometry() {
 # Arguments: s_dir wid
 fn_slamWid() {
 	fn_slamWidGeometry $1 $GX0 $GY0 $GX1 $GY1 $GAP $2
-}
-
-# Center a window
-# Arguments: wid
-fn_centerWid() {
-	# Set wid
-	local wid="$1"
-
-	# Get starting geometry
-	local nx=$(fn_getAttribute "x" "$wid")
-	local ny=$(fn_getAttribute "y" "$wid")
-	local nw=$(fn_getAttribute "w" "$wid")
-	local nh=$(fn_getAttribute "h" "$wid")
-
-	# Get center of work area
-	local gcx=$(( ( $GX1 - $GX0 ) / 2 ))
-	local gcy=$(( ( $GY1 - $GY0 ) / 2 ))
-	local gcx=$(( $gcx + $GX0 ))
-	local gcy=$(( $gcy + $GY0 ))
-
-	# Adjust x and y to centered
-	nx=$(( $gcx - ( $nw / 2 ) ))
-	ny=$(( $gcy - ( $nh / 2 ) ))
-
-	# Move wid
-	GAP=0
-	fn_teleportWid "$nx" "$ny" "c" "c" "$wid"
-
 }
 
 # Parse a Grid expression and return the requested variable
@@ -801,6 +795,7 @@ fn_usage() {
 	echo "Place windows at specified positions throughout a geometry."
 	echo ""
 	echo "SETTINGS"
+	echo "  --autosave [ATOM]		autosave windows in an atom"
 	echo "  --flip			flip the y placement of windows"
 	echo "  --gap GAP			specify gap between geometry and WID"
 	echo "  --geometry X0 Y0 X1 Y1	specify placement bounds"
@@ -812,7 +807,6 @@ fn_usage() {
 	echo "  -h, --help			display this help text"
 	echo ""
 	echo "MODE"
-	echo "  -C, --center WID		center a window"
 	echo "  -G, --grid GRID POSITION WIDS	place windows in a grid cells"
 	echo "  -L, --scale PERCENT WID	scale a windows size"
 	echo "  -M, --max M_DIR WID 		maximize a windows in a given dimension"
@@ -820,7 +814,7 @@ fn_usage() {
 	echo "  -R, --restore WID		restore a windows position"
 	echo "  -S, --slam S_DIR WID		send a window in a direction"
 	echo "  -T, --tile RATIO PATTERN WIDS	place windows using a pattern"
-	echo "  -V, --save [STRING] WID	save a windows position"
+	echo "  -V, --save [ATOM] WID	save a windows position"
 	echo ""
 	echo "  -I, --internal CMD		call an internal function"
 }
@@ -831,6 +825,14 @@ do
 		"-h" | "--help" )
 			fn_usage
 			exit;;
+		"--autosave")
+			AUTOSAVE=1
+			if [[ "$2" != "-"* ]]; then
+				SAVE="$2"
+				shift 2
+			else
+				shift 1
+			fi;;
 		"--flip" )
 			fn_setFlip
 			shift 1;;
@@ -852,10 +854,6 @@ do
 		"--quiet" )
 			QUIET=1
 			shift 1;;
-		"-C" | "--center" )
-			shift 1
-			fn_centerWid $@
-			exit;;
 		"-G" | "--grid" )
 			shift 1
 			fn_gridMany $@
