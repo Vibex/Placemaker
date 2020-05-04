@@ -144,6 +144,9 @@ By appending additional information to a <code>WID</code> you can adjust a windo
 - Geometry Adjustment
   - By appending <code>+X,Y,W,H</code> to a <code>WID</code> you can adjust the windows position after placemaker has processed the window, but before it has been moved.
     - Example: <code>0x00000000+10,20,-10,-20</code> will move 0x00000000 10 pixels to the right and 20 pixels down, and decrease its width by 10 pixels and its height by 20 pixels. This will occur regardless of what function processes the window.
+- Override Adjustment
+  - By appending <code>+[x|y|w|h]=INTEGER</code> to a <code>WID</code> you can force the x, y, w, or h value to be overrode right before the window is placed.
+    - Example: <code>0x00000000+w=200</code> will force 0x00000000 to have a width of 200 regardless of what other calculations placemaker has done.
 - Position Adjustment
   - By appending <code>+S_DIR</code> (the parameter for the <code>--slam</code> function) to a <code>WID</code> you can position a window within its determined geometry. When this is done the windows width and height will be their current value. This can be used in conjunction with <code>--tile</code> to produce a psuedo tiled mode, where windows are positioned in their tiled locations, but are free to be any size.
     - Example: <code>0x00000000+upperright</code> will position 0x00000000 in the upper right hand corner of its set geometry.

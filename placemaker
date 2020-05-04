@@ -72,18 +72,10 @@ SAVE="PLACEMAKER_SAVE"
 # If ' c ' than the value is not updated
 # Arguments: x0 y0 x1 y1
 fn_geometry() {
-	if [[ "$1" != "c" ]]; then
-		GX0=$1
-	fi
-	if [[ "$2" != "c" ]]; then
-		GY0=$2
-	fi
-	if [[ "$3" != "c" ]]; then
-		GX1=$3
-	fi
-	if [[ "$4" != "c" ]]; then
-		GY1=$4
-	fi
+	[[ "$1" != "c" ]] && GX0=$1
+	[[ "$2" != "c" ]] && GY0=$2
+	[[ "$3" != "c" ]] && GX1=$3
+	[[ "$4" != "c" ]] && GY1=$4
 }
 
 # Save a windows at geometry
@@ -98,11 +90,7 @@ fn_saveWidAt() {
 # Arguments: [ATOM] WID
 fn_saveWid() {
 	local atom="$1"
-	if [[ "$atom" == "0x"* || "$atom" == "--erase" ]]; then
-		atom="$SAVE"
-	else
-		shift 1
-	fi
+	[[ "$atom" == "0x"* || "$atom" == "--erase" ]] && atom="$SAVE" || shift 1
 	
 	# Get wid
 	local wid="$1"
@@ -119,12 +107,8 @@ fn_saveWid() {
 # ATOM definition with fn_saveWidAt
 # Arguments: [ATOM] [--erase] WID
 fn_restoreWid() {
-	atom="$1"
-	if [[ "$atom" == "0x"* || "$atom" == "--erase" ]]; then
-		atom="$SAVE"
-	else
-		shift 1
-	fi
+	local atom="$1"
+	[[ "$atom" == "0x"* || "$atom" == "--erase" ]] && atom="$SAVE" || shift 1
 	
 	local erase=0
 	[[ "$1" == "--erase" ]] && erase=1 && shift 1
@@ -160,25 +144,32 @@ fn_getAttribute() {
 # 0x00000000+upperleft			Adjust position (takes any S_DIR)
 # 0x00000000+mirror 			Toggle mirror
 # 0x00000000+flip				Toggle flip
+# 0x00000000+W=100				Set geometry [X|Y|W|H]=integer
 # 0x00000000+0x00000001			Change targeted wid
 # x, y, w, or h are either an int or ' c '
 # If an int, than set that value
 # If ' c ' than the value is not updated
 # Arguments: x y w h wid
 fn_teleportWid() {
-
-	# Deal with adjust options
+	# Set defaults for adjust options
 	local ox=0
 	local oy=0
 	local ow=0
 	local oh=0
-	local ap=0
+	local ap=""
 	local am=$MIRROR
 	local af=$FLIP
+	local ovx=""
+	local ovy=""
+	local ovw=""
+	local ovh=""
 
+	# Deal with adjust options
 	for a in $(echo "$5" | tr "+" " "); do
+		# Wid adjust (this also sets the original wid
 		if [[ "$a" == "0x"* ]]; then
 			local wid=$a
+		# Geometry adjust (these can be stacked indefinitely)
 		elif [[ "$a" == *","* ]]; then
 			local tox=$(echo "$a" | cut -d , -f 1)
 			local toy=$(echo "$a" | cut -d , -f 2)
@@ -188,56 +179,48 @@ fn_teleportWid() {
 			oy=$(( $toy + $oy ))
 			ow=$(( $tow + $ow ))
 			oh=$(( $toh + $oh ))
+		# Reflect adjust (mirror toggle)
 		elif [[ "$a" == "mirror" ]]; then
-			if [[ "$am" -eq 0 ]]; then
-				am=1
-			else
-				am=0
-			fi
+			[[ "$am" -eq 0 ]] && am=1 || am=0
+		# Reflect adjust (flip toggle)
 		elif [[ "$a" == "flip" ]]; then
-			if [[ "$af" -eq 0 ]]; then
-				af=1
+			[[ "$af" -eq 0 ]] && af=1 || af=0
+		# Override adjust
+		elif [[ "$a" == *"="* ]]; then
+			local aa=$(echo "$a" | cut -d "=" -f 1)
+			local ab=$(echo "$a" | cut -d "=" -f 2)
+			if [[ "$aa" == "x" ]]; then
+				[[ "$ab" != "c" ]] && ovx=$ab
+			elif [[ "$aa" == "y" ]]; then
+				[[ "$ab" != "c" ]] && ovy=$ab
+			elif [[ "$aa" == "w" ]]; then
+				[[ "$ab" != "c" ]] && ovw=$ab
+			elif [[ "$aa" == "h" ]]; then
+				[[ "$ab" != "c" ]] && ovh=$ab
 			else
-				af=0
+				echo "$a is not a valid override adjust" && exit
 			fi
+		# Position adjust
 		else
 			ap="$a"
 		fi
 	done
-
+	
 	# Check if x,y,w,h are c and if they are make them the current value
 	# If they aren't adjust them accordingly
-	local bor="$(fn_getAttribute "b" "$wid")"
-	[[ "$IGNOREB" -eq 1 ]] && bor=0
-	# Check x
-	if [[ "$1" == "c" ]]; then
-		local nx=$(fn_getAttribute "x" "$wid")
-	else
-		local nx=$(( $1 + $GAP ))
-	fi
-	# Check y
-	if [[ "$2" == "c" ]]; then
-		local ny=$(fn_getAttribute "y" "$wid")
-	else
-		local ny=$(( $2 + $GAP ))
-	fi
-	# Check w
-	if [[ "$3" == "c" ]]; then
-		local nw=$(fn_getAttribute "w" "$wid")
-	else
-		local nw=$(( $3 - $GAP - $GAP - $bor - $bor ))
-	fi
-	# Check h
-	if [[ "$4" == "c" ]]; then
-		local nh=$(fn_getAttribute "h" "$wid")
-	else
-		local nh=$(( $4 - $GAP - $GAP - $bor - $bor ))
-	fi
+	local nx=0 && local ny=0 && local nw=0 && local nh=0 && local bor=0
+	[[ "$IGNOREB" -eq 1 ]] && bor=0 || bor=$(fn_getAttribute "b" "$wid") 
+	[[ "$1" != "c" ]] && nx=$(( $1 + $GAP )) || nx=$(fn_getAttribute "x" "$wid")
+	[[ "$2" != "c" ]] && ny=$(( $2 + $GAP )) || ny=$(fn_getAttribute "y" "$wid")
+	[[ "$3" != "c" ]] && nw=$(( $3 - $GAP - $GAP - $bor - $bor )) || nw=$(fn_getAttribute "w" "$wid")
+	[[ "$4" != "c" ]] && nh=$(( $4 - $GAP - $GAP - $bor - $bor )) || nh=$(fn_getAttribute "h" "$wid")
+	local oaw=$nw
+	local oah=$nh
 
 	# Mirror if set
-	[[ $am -eq 1 ]] && nx=$(( $GX1 - ( $nx + $nw ) + $GX0 ))
+	[[ $am -eq 1 ]] && nx=$(( $GX1 - ( $nx + $nw ) + $GX0 - ($bor * 2) ))
 	# Flip if set
-	[[ $af -eq 1 ]] && ny=$(( $GY1 - ( $ny + $nh ) + $GY0 ))
+	[[ $af -eq 1 ]] && ny=$(( $GY1 - ( $ny + $nh ) + $GY0 - ($bor * 2) ))
 
 	# Alter sizing with adjustments
 	nx=$(( $nx + $ox ))
@@ -246,17 +229,27 @@ fn_teleportWid() {
 	nh=$(( $nh + $oh ))
 
 	# Move, save, and print the window
-	if [[ "$ap" == "0" ]]; then
+	if [[ "$ap" == "" ]]; then
+		[[ "$ovx" != "" ]] && nx=$ovx
+		[[ "$ovy" != "" ]] && ny=$ovy
+		[[ "$ovw" != "" ]] && nw=$ovw
+		[[ "$ovh" != "" ]] && nh=$ovh
 		[[ "$PRINT" -eq 0 ]] && wtp $nx $ny $nw $nh $wid 
 		[[ "$AUTOSAVE" -eq 1 ]] && fn_saveWidAt $SAVE $nx $ny $nw $nh $wid 
 		[[ "$QUIET" -eq 0 ]] && echo "$nx $ny $nw $nh $wid"
 	# A position adjustment was set, than position it
 	else
-		local sx=$(( $nx - $GAP ))
-		local sy=$(( $ny - $GAP ))
-		local sw=$(( $nw + $nx - ($GAP / 2) ))
-		local sh=$(( $nh + $ny - ($GAP / 2) ))
-		fn_slamWidGeometry "$ap" "$sx" "$sy" "$sw" "$sh" "0" "$wid"
+		local tgap=$GAP && GAP=0
+		local tib=$IGNOREB && IGNOREB=1
+		local tm=$MIRROR && MIRROR=0
+		local tf=$FLIP && FLIP=0
+		[[ "$ovw" != "" ]] && local sw=$ovw || local sw=$oaw
+		[[ "$ovh" != "" ]] && local sh=$ovh || local sh=$oah
+		fn_slamWidGeometry "$ap" "$nx" "$ny" "$(( $nw + $nx ))" "$(( $nh + $ny ))" "0" $sw $sh "$wid+w=$sw+h=$sh" 
+		GAP=$tgap
+		IGNOREB=$tib
+		MIRROR=$tm
+		FLIP=$tf
 	fi
 }
 
@@ -355,9 +348,10 @@ fn_maxWid() {
 # xcenter	 | hcenter
 # ycenter	 | vcenter
 # center	 | 
-# Arguments: s_dir x0 y0 x1 y1 gap wid
+# Arguments: s_dir x0 y0 x1 y1 gap w h wid
 fn_slamWidGeometry() {
-	local wid="$7"
+	#local wid="$7"
+	local wid=$9
 
 	# Geometry to use
 	local NGX0=$2
@@ -367,10 +361,14 @@ fn_slamWidGeometry() {
 	local NGAP=$6
 
 	# Get starting geometry
-	local nx=$(fn_getAttribute "x" "$wid")
-	local ny=$(fn_getAttribute "y" "$wid")
-	local nw=$(fn_getAttribute "w" "$wid")
-	local nh=$(fn_getAttribute "h" "$wid")
+	#local nx=""
+	#local ny=""
+	#local nw=$(fn_getAttribute "w" "$wid")
+	#local nh=$(fn_getAttribute "h" "$wid")
+	local nx=""
+	local ny=""
+	local nw=$7
+	local nh=$8
 	local bor="$(fn_getAttribute "b" "$wid")"
 	[[ "$IGNOREB" -eq 1 ]] && bor=0
 
@@ -418,7 +416,7 @@ fn_slamWidGeometry() {
 			gcy=$(( $gcy + $NGY0 ))
 			nx=$(( $gcx - ( $nw / 2 ) ))
 			ny=$(( $gcy - ( $nh / 2 ) ));;
-		*) echo "$1 is not a valid S_DIR";;
+		*) echo "$1 is not a valid S_DIR";exit;;
 	
 	esac
 
@@ -433,7 +431,12 @@ fn_slamWidGeometry() {
 # S_DIR definition is with fn_slamWidGeometry
 # Arguments: s_dir wid
 fn_slamWid() {
-	fn_slamWidGeometry $1 $GX0 $GY0 $GX1 $GY1 $GAP $2
+	local wid="$2"
+
+	# Get starting geometry
+	local nw=$(fn_getAttribute "w" "$wid")
+	local nh=$(fn_getAttribute "h" "$wid")
+	fn_slamWidGeometry $1 $GX0 $GY0 $GX1 $GY1 $GAP $nw $nh $wid
 }
 
 # Parse a Grid expression and return the requested variable
@@ -442,13 +445,16 @@ fn_slamWid() {
 # y = y
 # Arguments: [x|y] grid
 fn_parseGrid() {
-	local out="Not valid argument"
+	local out=""
 	# Return x
 	if [[ "$1" == "x" ]]; then
 		out=$(echo "$2" | cut -d x -f 1)
 	# Return y
 	elif [[ "$1" == "y" ]]; then
 		out=$(echo "$2" | cut -d x -f 2)
+	else
+		echo "not a valid parse parameter"
+		exit
 	fi
 	echo "$out"
 }
@@ -461,7 +467,7 @@ fn_parseGrid() {
 # ys = yscale
 # Arguments: [x|y|xs|ys] position
 fn_parsePosition() {
-	local out="Not valid argument"
+	local out=""
 	# Return x
 	if [[ "$1" == "x" ]]; then
 		out=$(echo "$2" | cut -d , -f 1)
@@ -482,6 +488,9 @@ fn_parsePosition() {
 			*+*) out=$(echo "$2" | cut -d + -f 2 | cut -d , -f 2);;
 			*) out=1;;
 		esac
+	else
+		echo "not a valid parse parameter"
+		exit
 	fi
 	echo "$out"
 }
@@ -519,18 +528,10 @@ fn_gridWid() {
 	local ny=$(( ( $ycell * $ypos ) + $GY0 ))
 
 	# If the wid is in the last x cell of the grid, compensate for rounding errors in cell size
-	if [[ $(( $xpos + $xscale )) -eq $xgrid ]]; then
-		local nw=$(( $GX1 - $nx ))
-	else
-		local nw=$(( $xscale * $xcell ))
-	fi
+	[[ $(( $xpos + $xscale )) -eq $xgrid ]] && local nw=$(( $GX1 - $nx )) || local nw=$(( $xscale * $xcell ))
 
 	# If the wid is in the last y cell of the grid, compensate for rounding errors in cell size
-	if [[ "$(( $ypos + $yscale ))" -eq "$ygrid" ]]; then
-		local nh=$(( $GY1 - $ny ))
-	else
-		local nh=$(( $yscale * $ycell ))
-	fi
+	[[ $(( $ypos + $yscale )) -eq $ygrid ]] && local nh=$(( $GY1 - $ny )) || local nh=$(( $yscale * $ycell ))
 
 	# Move wid
 	fn_teleportWid "$nx" "$ny" "$nw" "$nh" "$wid"
@@ -543,9 +544,7 @@ fn_gridWid() {
 # Arguments: [x|y] position override value
 fn_checkPosition() {
 	local out="$(fn_parsePosition $1 $2)"
-	if [[ "$out" == "o" ]]; then
-		out="$3"
-	fi
+	[[ "$out" == "o" ]] && out="$3"
 	echo "$out"
 }
 
@@ -639,9 +638,7 @@ fn_gridMany() {
 					cypos=0
 					cxpos=$(( $cxpos + $xshift ))
 					# If reached end, cycle
-					if [[ "$cxpos" -ge "$xcalcgrid" ]]; then
-						cxpos=0
-					fi
+					[[ "$cxpos" -ge "$xcalcgrid" ]] && cxpos=0
 				fi
 			# If --x-next is set than shift on y axis
 			elif [[ "$sorder" -eq 1 ]]; then
@@ -651,9 +648,7 @@ fn_gridMany() {
 					cxpos=0
 					cypos=$(( $cypos + $yshift ))
 					# If reach end, cycle
-					if [[ "$cypos" -ge "$ycalcgrid" ]]; then
-						cypos=0
-					fi
+					[[ "$cypos" -ge "$ycalcgrid" ]] && cypos=0
 				fi
 			# If --no-auto is set, than don't update anything
 			#elif [[ "$sorder" -eq 2 ]]; then
@@ -665,21 +660,13 @@ fn_gridMany() {
 # Alternate the state of MIRROR
 # Arguments:
 fn_setMirror() {
-	if [[ $MIRROR -eq 0 ]]; then
-		MIRROR=1
-	else
-		MIRROR=0
-	fi
+	[[ $MIRROR -eq 0 ]] && MIRROR=1 || MIRROR=0
 }
 
 # Alternate the state of FLIP
 # Arguments:
 fn_setFlip() {
-	if [[ $FLIP -eq 0 ]]; then
-		FLIP=1
-	else
-		FLIP=0
-	fi
+	[[ $FLIP -eq 0 ]] && FLIP=1 || FLIP=0
 }
 
 # Parse a ratio expression and return the requested variable
@@ -688,13 +675,16 @@ fn_setFlip() {
 # t = total
 # Arguments: [m|t] ratio
 fn_parseRatio() {
-	local out="Not valid argument"
+	local out=""
 	# Return m
 	if [[ "$1" == "m" ]]; then
 		out=$(echo "$2" | cut -d / -f 1)
 	# Return t
 	elif [[ "$1" == "t" ]]; then
 		out=$(echo "$2" | cut -d / -f 2)
+	else
+		echo "not a valid parse parameter"
+		exit
 	fi
 	echo "$out"
 }
@@ -733,9 +723,7 @@ fn_tile() {
 		case "$pattern" in
 			# rstack tiling
 			"rstack" | "vstack" | "r" | "lstack" | "l" )
-				if [[ "$pattern" == "l"* ]]; then
-					fn_setMirror
-				fi
+				[[ "$pattern" == "l"* ]] && fn_setMirror
 
 				# Calculate the grid
 				shiftmode="--y-shift"
@@ -751,9 +739,7 @@ fn_tile() {
 				subpos2=$(( $tratio - $mratio ))
 				subpos3="1";;
 			"bstack" | "hstack" | "b" | "tstack" | "t" )
-				if [[ "$pattern" == "t"* ]]; then
-					fn_setFlip
-				fi
+				[[ "$pattern" == "t"* ]] && fn_setFlip
 
 				# Calculate the grid
 				shiftmode="--x-shift"
@@ -814,7 +800,7 @@ fn_usage() {
 	echo "  -R, --restore WID		restore a windows position"
 	echo "  -S, --slam S_DIR WID		send a window in a direction"
 	echo "  -T, --tile RATIO PATTERN WIDS	place windows using a pattern"
-	echo "  -V, --save [ATOM] WID	save a windows position"
+	echo "  -V, --save [ATOM] WID		save a windows position"
 	echo ""
 	echo "  -I, --internal CMD		call an internal function"
 }
